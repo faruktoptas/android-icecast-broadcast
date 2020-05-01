@@ -12,6 +12,7 @@ import android.support.annotation.StringRes
 import android.support.v4.app.ActivityCompat
 import android.support.v4.app.FragmentActivity
 import android.support.v4.content.ContextCompat
+import android.view.WindowManager
 import android.widget.Toast
 import com.google.zxing.integration.android.IntentIntegrator
 import ice.caster.android.R
@@ -27,6 +28,7 @@ class MainActivity : FragmentActivity() {
     public override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         val permAudio = Manifest.permission.RECORD_AUDIO
         val permCamera = Manifest.permission.CAMERA
