@@ -141,7 +141,7 @@ public class Encoder {
 				shout = null;
 				try {
 					shout = new ShoutOutputStream();
-					shout.init("188.226.213.202", 8002, "/test", "test", "testing");
+					shout.init(config.host, config.port, config.mount, config.username, config.password);
 				} catch (Exception e) { //FileNotFoundException
 					if (mHandler != null) {
 						mHandler.sendEmptyMessage(MSG_ERROR_STREAM_INIT);
@@ -255,7 +255,7 @@ public class Encoder {
 	 * @param handler
 	 *
 	 */
-	public void setHandle(Handler handler) {
+	public void setHandler(Handler handler) {
 		this.mHandler = handler;
 	}
 }

@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Ice Caster</string>
+    <string name="perm_error">Mikrofon ve Kamera izni gerekli</string>
+    <string name="txt_qr">Qr Oku</string>
+    <string name="txt_start">Başla</string>
+    <string name="txt_stop">Durdur</string>
+    <string name="invalid_qr">Qr okunamadı</string>
+    <string name="qr_not_set">Önce qr okutunuz</string>
+    <string name="recording">Kaydediliyor...</string>
 </resources>
