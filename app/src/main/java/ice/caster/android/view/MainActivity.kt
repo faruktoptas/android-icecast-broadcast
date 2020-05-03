@@ -8,14 +8,16 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Message
-import android.support.annotation.StringRes
-import android.support.v4.app.ActivityCompat
-import android.support.v4.app.FragmentActivity
-import android.support.v4.content.ContextCompat
+import androidx.annotation.StringRes
+import androidx.core.app.ActivityCompat
+import androidx.fragment.app.FragmentActivity
+import androidx.core.content.ContextCompat
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import com.google.zxing.integration.android.IntentIntegrator
 import ice.caster.android.R
+import ice.caster.android.pref.PreferenceWrapper
 import ice.caster.android.shout.Config
 import ice.caster.android.shout.Encoder
 import kotlinx.android.synthetic.main.activity_main.*
@@ -24,6 +26,7 @@ import kotlinx.android.synthetic.main.activity_main.*
 class MainActivity : FragmentActivity() {
 
     private var encoder: Encoder? = null
+    private val pref = PreferenceWrapper.instance
 
     public override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,10 +45,14 @@ class MainActivity : FragmentActivity() {
         }
 
         btnStart.setOnClickListener {
-            encoder?.start() ?: showError(R.string.qr_not_set)
+            encoder?.start() ?: showToast(R.string.qr_not_set)
         }
         btnStop.setOnClickListener { encoder?.stop() }
         btnQr.setOnClickListener { scanQr() }
+
+        tvVersion.text = "v${applicationContext.packageManager.getPackageInfo(applicationContext.packageName, 0).versionName}"
+
+        readPref()
     }
 
 
@@ -61,11 +68,11 @@ class MainActivity : FragmentActivity() {
         rlContainer.background = ColorDrawable(ContextCompat.getColor(this, bgColor))
     }
 
-    private fun showError(err: String) {
+    private fun showToast(err: String) {
         Toast.makeText(this, err, Toast.LENGTH_SHORT).show()
     }
 
-    private fun showError(@StringRes err: Int) {
+    private fun showToast(@StringRes err: Int) {
         Toast.makeText(this, err, Toast.LENGTH_SHORT).show()
     }
 
@@ -75,33 +82,76 @@ class MainActivity : FragmentActivity() {
         integrator.initiateScan(IntentIntegrator.QR_CODE_TYPES)
     }
 
+    private fun readPref() {
+        if (pref.host.isNotEmpty() && pref.port > 0 && pref.mount.isNotEmpty() && pref.user.isNotEmpty() && pref.pass.isNotEmpty()) {
+            setConfig(pref.host, pref.port, pref.mount, pref.user, pref.pass)
+            showToast(R.string.qr_read)
+        }
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, intent: Intent?) {
         val scanResult = IntentIntegrator.parseActivityResult(requestCode, resultCode, intent)
         if (scanResult != null) {
             val u: Uri = try {
                 Uri.parse(scanResult.contents)
             } catch (e1: Exception) {
-                showError(R.string.invalid_qr)
+                showToast(R.string.invalid_qr)
                 return
             }
-            setConfig(u)
+            parseUri(u)
         }
     }
 
-    private fun setConfig(uri: Uri) {
+    private fun parseUri(uri: Uri) {
         if (uri.userInfo != null && uri.userInfo.split(":").toTypedArray().size >= 2) {
             val authority = uri.userInfo.split(":").toTypedArray()
             val user = authority[0]
             val pass = authority[1]
-            val mount = uri.path.replace("^/", "");
+            val mount = uri.path?.replace("^/", "").orEmpty();
+            val host = uri.host.orEmpty()
+            val port = uri.port
 
-            encoder = Encoder(
-                    Config().host(uri.host).port(uri.port).mount(mount)
-                            .username(user).password(pass).sampleRate(8000))
+            pref.host = host
+            pref.port = uri.port
+            pref.mount = mount
+            pref.user = user
+            pref.pass = pass
 
-            encoder?.setHandler(EncoderHandler(this::setStatus, this::showError))
+            setConfig(host, port, mount, user, pass)
         } else {
-            showError(R.string.invalid_qr)
+            showToast(R.string.invalid_qr)
+        }
+    }
+
+    private fun setConfig(host: String, port: Int, mount: String, user: String, pass: String) {
+        encoder = Encoder(Config()
+                .host(host)
+                .port(port)
+                .mount(mount)
+                .username(user)
+                .password(pass)
+                .sampleRate(8000))
+
+        encoder?.setHandler(EncoderHandler(this::setStatus, this::showToast))
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        encoder?.stop()
+    }
+
+    override fun onBackPressed() {
+        if (encoder?.isRecording == true) {
+            AlertDialog.Builder(this)
+                    .setMessage(R.string.quit_question)
+                    .setPositiveButton(R.string.txt_stop) { _, _ ->
+                        encoder?.stop()
+                        finish()
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+        } else {
+            super.onBackPressed()
         }
     }
 

@@ -8,4 +8,7 @@
     <string name="invalid_qr">Qr okunamadı</string>
     <string name="qr_not_set">Önce qr okutunuz</string>
     <string name="recording">Kaydediliyor...</string>
+    <string name="quit_question">Yayını durdurmak istediğinizden emin misiniz?</string>
+    <string name="cancel">Vazgeç</string>
+    <string name="qr_read">Qr bilgileri okundu</string>
 </resources>

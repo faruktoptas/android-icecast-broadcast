@@ -3,17 +3,17 @@
  * Updated by Fatih Sokmen 01.11.2015
  *
  * Copyright (c) 2011-2012 Yuichi Hirano
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
@@ -33,229 +33,240 @@ import android.media.MediaRecorder;
 import android.os.Handler;
 
 /**
+ *
  */
 public class Encoder {
 
-	static {
-		System.loadLibrary("lamemp3");
-	}
+    static {
+        System.loadLibrary("lamemp3");
+    }
 
 
-	/**
-	 */
-	private boolean mIsRecording = false;
+    /**
+     *
+     */
+    private boolean mIsRecording = false;
 
-	/**
-	 *
-	 */
-	private Handler mHandler;
+    /**
+     *
+     */
+    private Handler mHandler;
 
 
-	/**
-	 * Upstream source
-	 */
-	private ShoutOutputStream shout;
+    /**
+     * Upstream source
+     */
+    private ShoutOutputStream shout;
 
     /**
      * Config
      */
     private Config config;
 
-	/**
-	 *
-	 */
-	public static final int MSG_REC_STARTED = 0;
+    /**
+     *
+     */
+    public static final int MSG_REC_STARTED = 0;
 
-	/**
-	 */
-	public static final int MSG_REC_STOPPED = 1;
+    /**
+     *
+     */
+    public static final int MSG_REC_STOPPED = 1;
 
-	/**
-	 */
-	public static final int MSG_ERROR_GET_MIN_BUFFERSIZE = 2;
-
-
-	/**
-	 */
-	public static final int MSG_ERROR_REC_START = 4;
-	
-	/**
-	 */
-	public static final int MSG_ERROR_AUDIO_RECORD = 5;
-
-	/**
-	 */
-	public static final int MSG_ERROR_AUDIO_ENCODE = 6;
-
-	/**
-	 */
-	public static final int MSG_ERROR_STREAM_INIT = 7;
-
-	/**
-	 */
-	public static final int MSG_ERROR_CLOSE_STREAM = 8;
+    /**
+     *
+     */
+    public static final int MSG_ERROR_GET_MIN_BUFFERSIZE = 2;
 
 
-	/**
-	 */
-	public Encoder(Config config) {
-		if (config.sampleRate <= 0) {
-			throw new InvalidParameterException(
-					"Invalid sample rate specified.");
-		}
-		this.config = config;
-	}
+    /**
+     *
+     */
+    public static final int MSG_ERROR_REC_START = 4;
 
-	/**
-	 */
-	public void start() {
-		if (mIsRecording) {
-			return;
-		}
+    /**
+     *
+     */
+    public static final int MSG_ERROR_AUDIO_RECORD = 5;
 
-		new Thread() {
-			@Override
-			public void run() {
-				android.os.Process
-						.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
+    /**
+     *
+     */
+    public static final int MSG_ERROR_AUDIO_ENCODE = 6;
 
-				final int minBufferSize = AudioRecord.getMinBufferSize(
-						config.sampleRate, AudioFormat.CHANNEL_IN_MONO,
-						AudioFormat.ENCODING_PCM_16BIT);
-				if (minBufferSize < 0) {
-					if (mHandler != null) {
-						mHandler.sendEmptyMessage(MSG_ERROR_GET_MIN_BUFFERSIZE);
-					}
-					return;
-				}
+    /**
+     *
+     */
+    public static final int MSG_ERROR_STREAM_INIT = 7;
 
-				AudioRecord audioRecord = new AudioRecord(
-						MediaRecorder.AudioSource.MIC, config.sampleRate,
-						AudioFormat.CHANNEL_IN_MONO,
-						AudioFormat.ENCODING_PCM_16BIT, minBufferSize * 2);
+    /**
+     *
+     */
+    public static final int MSG_ERROR_CLOSE_STREAM = 8;
 
-				// PCM buffer size (5sec)
-				short[] buffer = new short[config.sampleRate * (16 / 8) * 1 * 1]; // SampleRate[Hz] * 16bit * Mono * 5sec
-				byte[] mp3buffer = new byte[(int) (7200 + buffer.length * 2 * 1.25)];
+    private Thread runningThread;
+    private AudioRecord audioRecord;
 
-				shout = null;
-				try {
-					shout = new ShoutOutputStream();
-					shout.init(config.host, config.port, config.mount, config.username, config.password);
-				} catch (Exception e) { //FileNotFoundException
-					if (mHandler != null) {
-						mHandler.sendEmptyMessage(MSG_ERROR_STREAM_INIT);
-					}
-					return;
-				}
+    /**
+     *
+     */
+    public Encoder(Config config) {
+        if (config.sampleRate <= 0) {
+            throw new InvalidParameterException(
+                    "Invalid sample rate specified.");
+        }
+        this.config = config;
+    }
 
-				// Lame init
-				Lame.init(config.sampleRate, 1, config.sampleRate, 32);
+    /**
+     *
+     */
+    public void start() {
+        if (mIsRecording) {
+            return;
+        }
 
-				mIsRecording = true;
-				try {
-					try {
-						audioRecord.startRecording();
-					} catch (IllegalStateException e) {
-						if (mHandler != null) {
-							mHandler.sendEmptyMessage(MSG_ERROR_REC_START);
-						}
-						return;
-					}
+        runningThread = new Thread() {
+            @Override
+            public void run() {
+                android.os.Process
+                        .setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
 
-					try {
-						if (mHandler != null) {
-							mHandler.sendEmptyMessage(MSG_REC_STARTED);
-						}
+                final int minBufferSize = AudioRecord.getMinBufferSize(
+                        config.sampleRate, AudioFormat.CHANNEL_IN_MONO,
+                        AudioFormat.ENCODING_PCM_16BIT);
+                if (minBufferSize < 0) {
+                    if (mHandler != null) {
+                        mHandler.sendEmptyMessage(MSG_ERROR_GET_MIN_BUFFERSIZE);
+                    }
+                    return;
+                }
 
-						int readSize = 0;
-						while (mIsRecording) {
-							readSize = audioRecord.read(buffer, 0, minBufferSize);
-							if (readSize < 0) {
-								if (mHandler != null) {
-									mHandler.sendEmptyMessage(MSG_ERROR_AUDIO_RECORD);
-								}
-								break;
-							}
-							else if (readSize == 0) {
-								;
-							}
-							else {
-								int encResult = Lame.encode(buffer,
-										buffer, readSize, mp3buffer);
-								if (encResult < 0) {
-									if (mHandler != null) {
-										mHandler.sendEmptyMessage(MSG_ERROR_AUDIO_ENCODE);
-									}
-									break;
-								}
-								if (encResult != 0) {
-									try {
-										shout.write(mp3buffer, encResult);
-									} catch (Exception e) { //IOException
-										if (mHandler != null) {
-											mHandler.sendEmptyMessage(MSG_ERROR_AUDIO_ENCODE);
-										}
-										break;
-									}
-								}
-							}
-						}
+                audioRecord = new AudioRecord(
+                        MediaRecorder.AudioSource.MIC, config.sampleRate,
+                        AudioFormat.CHANNEL_IN_MONO,
+                        AudioFormat.ENCODING_PCM_16BIT, minBufferSize * 2);
 
-						int flushResult = Lame.flush(mp3buffer);
-						if (flushResult < 0) {
-							if (mHandler != null) {
-								mHandler.sendEmptyMessage(MSG_ERROR_AUDIO_ENCODE);
-							}
-						}
-						if (flushResult != 0) {
-							try {
-								shout.write(mp3buffer, flushResult);
-							} catch (Exception e) { //IOException
-								if (mHandler != null) {
-									mHandler.sendEmptyMessage(MSG_ERROR_AUDIO_ENCODE);
+                // PCM buffer size (5sec)
+                short[] buffer = new short[config.sampleRate * (16 / 8) * 1 * 1]; // SampleRate[Hz] * 16bit * Mono * 5sec
+                byte[] mp3buffer = new byte[(int) (7200 + buffer.length * 2 * 1.25)];
+
+                shout = null;
+                try {
+                    shout = new ShoutOutputStream();
+                    shout.init(config.host, config.port, config.mount, config.username, config.password);
+                } catch (Exception e) { //FileNotFoundException
+                    if (mHandler != null) {
+                        mHandler.sendEmptyMessage(MSG_ERROR_STREAM_INIT);
+                    }
+                    return;
+                }
+
+                // Lame init
+                Lame.init(config.sampleRate, 1, config.sampleRate, 32);
+
+                mIsRecording = true;
+                try {
+                    try {
+                        audioRecord.startRecording();
+                    } catch (IllegalStateException e) {
+                        if (mHandler != null) {
+                            mHandler.sendEmptyMessage(MSG_ERROR_REC_START);
+                        }
+                        return;
+                    }
+
+                    try {
+                        if (mHandler != null) {
+                            mHandler.sendEmptyMessage(MSG_REC_STARTED);
+                        }
+
+                        int readSize = 0;
+                        while (mIsRecording) {
+                            readSize = audioRecord.read(buffer, 0, minBufferSize);
+                            if (readSize < 0) {
+                                if (mHandler != null) {
+                                    mHandler.sendEmptyMessage(MSG_ERROR_AUDIO_RECORD);
                                 }
-							}
-						}
+                                break;
+                            } else if (readSize == 0) {
+                                ;
+                            } else {
+                                int encResult = Lame.encode(buffer,
+                                        buffer, readSize, mp3buffer);
+                                if (encResult < 0) {
+                                    if (mHandler != null) {
+                                        mHandler.sendEmptyMessage(MSG_ERROR_AUDIO_ENCODE);
+                                    }
+                                    break;
+                                }
+                                if (encResult != 0) {
+                                    try {
+                                        shout.write(mp3buffer, encResult);
+                                    } catch (Exception e) { //IOException
+                                        if (mHandler != null) {
+                                            mHandler.sendEmptyMessage(MSG_ERROR_AUDIO_ENCODE);
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
 
-						try {
-							shout.close();
-						} catch (Exception e) { //IOException
-							if (mHandler != null) {
-								mHandler.sendEmptyMessage(MSG_ERROR_CLOSE_STREAM);
-							}
-						}
-					} finally {
-						audioRecord.stop();
-						audioRecord.release();
-					}
-				} finally {
-					Lame.close();
-					mIsRecording = false;
-				}
+                        int flushResult = Lame.flush(mp3buffer);
+                        if (flushResult < 0) {
+                            if (mHandler != null) {
+                                mHandler.sendEmptyMessage(MSG_ERROR_AUDIO_ENCODE);
+                            }
+                        }
+                        if (flushResult != 0) {
+                            try {
+                                shout.write(mp3buffer, flushResult);
+                            } catch (Exception e) { //IOException
+                                if (mHandler != null) {
+                                    mHandler.sendEmptyMessage(MSG_ERROR_AUDIO_ENCODE);
+                                }
+                            }
+                        }
 
-				if (mHandler != null) {
-					mHandler.sendEmptyMessage(MSG_REC_STOPPED);
-				}
-			}
-		}.start();
-	}
+                        try {
+                            shout.close();
+                        } catch (Exception e) { //IOException
+                            if (mHandler != null) {
+                                mHandler.sendEmptyMessage(MSG_ERROR_CLOSE_STREAM);
+                            }
+                        }
+                    } finally {
+                        audioRecord.stop();
+                        audioRecord.release();
+                        audioRecord = null;
+                        runningThread = null;
+                    }
+                } finally {
+                    Lame.close();
+                    mIsRecording = false;
+                }
 
-	public void stop() {
-		mIsRecording = false;
+                if (mHandler != null) {
+                    mHandler.sendEmptyMessage(MSG_REC_STOPPED);
+                }
+            }
+        };
+        runningThread.start();
+    }
 
-	}
+    public void stop() {
+        mIsRecording = false;
+    }
 
-	public boolean isRecording() {
-		return mIsRecording;
-	}
+    public boolean isRecording() {
+        return mIsRecording;
+    }
 
-	/**
-	 * 
-	 * @param handler
-	 *
-	 */
-	public void setHandler(Handler handler) {
-		this.mHandler = handler;
-	}
+    /**
+     * @param handler
+     */
+    public void setHandler(Handler handler) {
+        this.mHandler = handler;
+    }
 }
