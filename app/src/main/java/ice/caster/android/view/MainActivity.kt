@@ -90,6 +90,7 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, intent: Intent?) {
+        super.onActivityResult(requestCode, resultCode, intent)
         val scanResult = IntentIntegrator.parseActivityResult(requestCode, resultCode, intent)
         if (scanResult != null) {
             val u: Uri = try {
@@ -103,8 +104,8 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun parseUri(uri: Uri) {
-        if (uri.userInfo != null && uri.userInfo.split(":").toTypedArray().size >= 2) {
-            val authority = uri.userInfo.split(":").toTypedArray()
+        if (uri.userInfo != null && uri.userInfo!!.split(":").toTypedArray().size >= 2) {
+            val authority = uri.userInfo!!.split(":").toTypedArray()
             val user = authority[0]
             val pass = authority[1]
             val mount = uri.path?.replace("^/", "").orEmpty();
