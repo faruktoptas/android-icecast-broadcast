@@ -14,11 +14,13 @@ import androidx.fragment.app.FragmentActivity
 import androidx.core.content.ContextCompat
 import android.view.WindowManager
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.gson.Gson
 import com.google.zxing.integration.android.IntentIntegrator
 import ice.caster.android.R
 import ice.caster.android.pref.PreferenceWrapper
-import ice.caster.android.shout.Config
+import ice.caster.android.shout.ConfigItem
+import ice.caster.android.shout.ConfigList
 import ice.caster.android.shout.Encoder
 import kotlinx.android.synthetic.main.activity_main.*
 
@@ -27,6 +29,9 @@ class MainActivity : FragmentActivity() {
 
     private var encoder: Encoder? = null
     private val pref = PreferenceWrapper.instance
+    private var configList = ConfigList(arrayListOf())
+    private lateinit var adapter: ListAdapter
+    private var currentPlayIndex = -1
 
     public override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,28 +49,77 @@ class MainActivity : FragmentActivity() {
             }
         }
 
-        btnStart.setOnClickListener {
-            encoder?.start() ?: showToast(R.string.qr_not_set)
-        }
-        btnStop.setOnClickListener { encoder?.stop() }
-        btnQr.setOnClickListener { scanQr() }
-
         tvVersion.text = "v${applicationContext.packageManager.getPackageInfo(applicationContext.packageName, 0).versionName}"
 
-        readPref()
+        adapter = ListAdapter(::startStream, ::deleteItem, ::scanQr)
+        refreshList()
+        rv.adapter = adapter
+
+        initEncoder()
+        readList()
+        refreshList()
     }
 
+    private fun startStream(position: Int) {
+        if (configList.list.size > position) {
+            encoder?.let {
+                if (it.isRecording) {
+                    it.stop()
+                } else {
+                    it.start(configList.list[position])
+                    currentPlayIndex = position
+                }
+            }
+        }
+    }
+
+    private fun deleteItem(position: Int) {
+        MaterialAlertDialogBuilder(this)
+                .setMessage(R.string.want_to_remove)
+                .setPositiveButton(R.string.remove) { _, _ ->
+                    configList.list.removeAt(position)
+                    adapter.notifyItemRemoved(position)
+                    saveList()
+                    rv.postDelayed({ refreshList() }, 50)
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+
+    }
+
+    private fun refreshList() {
+        adapter.list = configList.list
+        adapter.notifyDataSetChanged()
+    }
+
+    private fun addNew(item: ConfigItem) {
+        if (configList.list.firstOrNull { it.uid() == item.uid() } != null) {
+            showToast(R.string.already_exists)
+        } else {
+            configList.list.add(item)
+            saveList()
+            refreshList()
+        }
+
+    }
+
+    private fun saveList() {
+        PreferenceWrapper.instance.list = Gson().toJson(configList)
+    }
+
+    private fun readList() {
+        try {
+            configList = Gson().fromJson(pref.list, ConfigList::class.java)
+        } catch (e: Exception) {
+        }
+    }
 
     private fun setStatus(recording: Boolean) {
-        val bgColor: Int
-        if (recording) {
-            bgColor = R.color.green
-            tvStatus.setText(R.string.recording)
-        } else {
-            bgColor = R.color.white
-            tvStatus.text = ""
+        if (currentPlayIndex > -1 && configList.list.size > currentPlayIndex) {
+            configList.list.forEach { it.isRecording = false }
+            configList.list[currentPlayIndex].isRecording = recording
+            adapter.notifyDataSetChanged()
         }
-        rlContainer.background = ColorDrawable(ContextCompat.getColor(this, bgColor))
     }
 
     private fun showToast(err: String) {
@@ -82,14 +136,9 @@ class MainActivity : FragmentActivity() {
         integrator.initiateScan(IntentIntegrator.QR_CODE_TYPES)
     }
 
-    private fun readPref() {
-        if (pref.host.isNotEmpty() && pref.port > 0 && pref.mount.isNotEmpty() && pref.user.isNotEmpty() && pref.pass.isNotEmpty()) {
-            setConfig(pref.host, pref.port, pref.mount, pref.user, pref.pass)
-            showToast(R.string.qr_read)
-        }
-    }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, intent: Intent?) {
+        super.onActivityResult(requestCode, resultCode, intent)
         val scanResult = IntentIntegrator.parseActivityResult(requestCode, resultCode, intent)
         if (scanResult != null) {
             val u: Uri = try {
@@ -103,35 +152,22 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun parseUri(uri: Uri) {
-        if (uri.userInfo != null && uri.userInfo.split(":").toTypedArray().size >= 2) {
-            val authority = uri.userInfo.split(":").toTypedArray()
+        if (uri.userInfo != null && uri.userInfo!!.split(":").toTypedArray().size >= 2) {
+            val authority = uri.userInfo!!.split(":").toTypedArray()
             val user = authority[0]
             val pass = authority[1]
-            val mount = uri.path?.replace("^/", "").orEmpty();
+            val mount = uri.path?.replace("^/", "").orEmpty()
             val host = uri.host.orEmpty()
             val port = uri.port
 
-            pref.host = host
-            pref.port = uri.port
-            pref.mount = mount
-            pref.user = user
-            pref.pass = pass
-
-            setConfig(host, port, mount, user, pass)
+            addNew(ConfigItem(host, mount, user, pass, port, SAMPLE_RATE))
         } else {
             showToast(R.string.invalid_qr)
         }
     }
 
-    private fun setConfig(host: String, port: Int, mount: String, user: String, pass: String) {
-        encoder = Encoder(Config()
-                .host(host)
-                .port(port)
-                .mount(mount)
-                .username(user)
-                .password(pass)
-                .sampleRate(8000))
-
+    private fun initEncoder() {
+        encoder = Encoder()
         encoder?.setHandler(EncoderHandler(this::setStatus, this::showToast))
     }
 
@@ -142,7 +178,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onBackPressed() {
         if (encoder?.isRecording == true) {
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                     .setMessage(R.string.quit_question)
                     .setPositiveButton(R.string.txt_stop) { _, _ ->
                         encoder?.stop()
@@ -184,5 +220,9 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    companion object {
+        const val SAMPLE_RATE = 8000
     }
 }

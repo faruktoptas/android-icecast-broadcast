@@ -59,11 +59,6 @@ public class Encoder {
     private ShoutOutputStream shout;
 
     /**
-     * Config
-     */
-    private Config config;
-
-    /**
      *
      */
     public static final int MSG_REC_STARTED = 0;
@@ -110,18 +105,14 @@ public class Encoder {
     /**
      *
      */
-    public Encoder(Config config) {
-        if (config.sampleRate <= 0) {
-            throw new InvalidParameterException(
-                    "Invalid sample rate specified.");
-        }
-        this.config = config;
+    public Encoder() {
+
     }
 
     /**
      *
      */
-    public void start() {
+    public void start(final ConfigItem config) {
         if (mIsRecording) {
             return;
         }
@@ -133,7 +124,7 @@ public class Encoder {
                         .setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
 
                 final int minBufferSize = AudioRecord.getMinBufferSize(
-                        config.sampleRate, AudioFormat.CHANNEL_IN_MONO,
+                        config.getSampleRate(), AudioFormat.CHANNEL_IN_MONO,
                         AudioFormat.ENCODING_PCM_16BIT);
                 if (minBufferSize < 0) {
                     if (mHandler != null) {
@@ -143,18 +134,18 @@ public class Encoder {
                 }
 
                 audioRecord = new AudioRecord(
-                        MediaRecorder.AudioSource.MIC, config.sampleRate,
+                        MediaRecorder.AudioSource.MIC, config.getSampleRate(),
                         AudioFormat.CHANNEL_IN_MONO,
                         AudioFormat.ENCODING_PCM_16BIT, minBufferSize * 2);
 
                 // PCM buffer size (5sec)
-                short[] buffer = new short[config.sampleRate * (16 / 8) * 1 * 1]; // SampleRate[Hz] * 16bit * Mono * 5sec
+                short[] buffer = new short[config.getSampleRate() * (16 / 8) * 1 * 1]; // SampleRate[Hz] * 16bit * Mono * 5sec
                 byte[] mp3buffer = new byte[(int) (7200 + buffer.length * 2 * 1.25)];
 
                 shout = null;
                 try {
                     shout = new ShoutOutputStream();
-                    shout.init(config.host, config.port, config.mount, config.username, config.password);
+                    shout.init(config.getHost(), config.getPort(), config.getMount(), config.getUsername(), config.getPassword());
                 } catch (Exception e) { //FileNotFoundException
                     if (mHandler != null) {
                         mHandler.sendEmptyMessage(MSG_ERROR_STREAM_INIT);
@@ -163,7 +154,7 @@ public class Encoder {
                 }
 
                 // Lame init
-                Lame.init(config.sampleRate, 1, config.sampleRate, 32);
+                Lame.init(config.getSampleRate(), 1, config.getSampleRate(), 32);
 
                 mIsRecording = true;
                 try {
