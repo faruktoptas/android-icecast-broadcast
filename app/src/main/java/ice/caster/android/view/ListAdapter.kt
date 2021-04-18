@@ -29,8 +29,7 @@ class ListAdapter(private val onStartStop: (Int) -> Unit,
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         if (holder is ItemViewHolder) {
             val configItem = list[position]
-            holder.title.text = "${configItem.host}:${configItem.port}"
-            holder.subtitle.text = configItem.mount.replace("/", "")
+            holder.title.text = configItem.title
             holder.btnStart.setOnClickListener {
                 onStartStop(position)
             }
@@ -61,7 +60,6 @@ class ListAdapter(private val onStartStop: (Int) -> Unit,
 
     class ItemViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val title: TextView = view.findViewById(R.id.tvMain) as TextView
-        val subtitle: TextView = view.findViewById(R.id.tvSub) as TextView
         val btnStart: Button = view.findViewById(R.id.btnStartStop)
         val btnDelete: Button = view.findViewById(R.id.btnDelete)
         val card: CardView = view.findViewById(R.id.cv)

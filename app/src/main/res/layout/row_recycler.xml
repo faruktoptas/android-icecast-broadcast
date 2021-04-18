@@ -24,28 +24,21 @@
                 android:id="@+id/tvMain"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:textSize="18sp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                tools:text="Url" />
-
-            <TextView
-                android:id="@+id/tvSub"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:layout_constraintStart_toStartOf="parent"
-
-                app:layout_constraintTop_toBottomOf="@id/tvMain"
                 tools:text="Url" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnStartStop"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
                 android:text="Başla/Durdur"
                 app:icon="@drawable/ic_play"
                 app:iconTint="#fff"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tvSub" />
+                app:layout_constraintTop_toBottomOf="@id/tvMain" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnDelete"

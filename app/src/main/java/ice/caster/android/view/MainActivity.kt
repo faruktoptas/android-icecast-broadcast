@@ -32,6 +32,7 @@ class MainActivity : FragmentActivity() {
     private var configList = ConfigList(arrayListOf())
     private lateinit var adapter: ListAdapter
     private var currentPlayIndex = -1
+    private var currentConfigName = ""
 
     public override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -131,9 +132,12 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun scanQr() {
-        val integrator = IntentIntegrator(this)
-        integrator.title = "Please scan a fully qualified URI"
-        integrator.initiateScan(IntentIntegrator.QR_CODE_TYPES)
+        InputDialog {
+            currentConfigName = it
+            val integrator = IntentIntegrator(this)
+            integrator.title = "Please scan a fully qualified URI"
+            integrator.initiateScan(IntentIntegrator.QR_CODE_TYPES)
+        }.show(supportFragmentManager, "input")
     }
 
 
@@ -160,7 +164,7 @@ class MainActivity : FragmentActivity() {
             val host = uri.host.orEmpty()
             val port = uri.port
 
-            addNew(ConfigItem(host, mount, user, pass, port, SAMPLE_RATE))
+            addNew(ConfigItem(currentConfigName, host, mount, user, pass, port, SAMPLE_RATE))
         } else {
             showToast(R.string.invalid_qr)
         }

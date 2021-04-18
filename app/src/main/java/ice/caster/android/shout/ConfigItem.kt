@@ -4,6 +4,7 @@ import java.io.Serializable
 
 
 data class ConfigItem(
+        val title: String,
         val host: String,
         val mount: String,
         val username: String,

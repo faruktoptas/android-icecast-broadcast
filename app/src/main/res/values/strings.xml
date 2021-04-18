@@ -15,4 +15,5 @@
     <string name="remove">Sil</string>
     <string name="already_exists">Bu yayın zaten bulunmaktadır.</string>
     <string name="add_stream">Yayın Ekle</string>
+    <string name="et_hint">Yayına bir isim verin</string>
 </resources>
