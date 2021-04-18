@@ -14,16 +14,7 @@ class PreferenceWrapper {
         preferences = PreferenceManager.getDefaultSharedPreferences(context)
     }
 
-    var host: String by StringPref(HOST)
-
-    var port: Int by IntPref(PORT)
-
-    var mount: String by StringPref(MOUNT)
-
-    var user: String by StringPref(USER)
-
-    var pass: String by StringPref(PASS)
-
+    var list: String by StringPref(LIST)
 
     fun getString(key: String) = preferences.getString(key, "")
 
@@ -36,11 +27,7 @@ class PreferenceWrapper {
     companion object {
         val instance = PreferenceWrapper()
 
-        private const val HOST = "host"
-        private const val PORT = "port"
-        private const val MOUNT = "mount"
-        private const val USER = "user"
-        private const val PASS = "pass"
+        private const val LIST = "list"
     }
 }
 

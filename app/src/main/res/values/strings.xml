@@ -11,4 +11,8 @@
     <string name="quit_question">Yayını durdurmak istediğinizden emin misiniz?</string>
     <string name="cancel">Vazgeç</string>
     <string name="qr_read">Qr bilgileri okundu</string>
+    <string name="want_to_remove">Silmek istediğinizden emin misiniz?</string>
+    <string name="remove">Sil</string>
+    <string name="already_exists">Bu yayın zaten bulunmaktadır.</string>
+    <string name="add_stream">Yayın Ekle</string>
 </resources>
